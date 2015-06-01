@@ -23,6 +23,32 @@ include "navbar.php";
 </head>
 <body>
 <section>
+<h2>Students Ranked by GPA</h2>
+<?php
+	if (!$stmt = $mysqli->query("SELECT  U.username, G.GPA from USERDB U 
+		INNER JOIN GPA G on U.uid=G.sid ORDER BY G.GPA DESC")) {
+		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
+	}
+?>
+<table border="1">
+<thead> 
+<tr>
+	<th>Username</th>
+    <th>GPA</th>  
+</tr> 
+</thead>
+<tbody>
+<?php
+while($row = mysqli_fetch_array($stmt))	
+{
+	echo "<tr>" ;
+	echo "<td>" . $row['username'] . "</td>";
+	echo "<td>" . $row['GPA'] . "</td>";	
+	echo "</tr>";
+}
+?>
+</tbody>
+</table>
 <?php
 $sharedusers=array();
 if (!$stmt = $mysqli->query("SELECT username FROM CINFO")) {
@@ -63,11 +89,15 @@ if(!isset($_SESSION['sort'])||$_SESSION['sort']=="NONE")
 }
 else if ($_SESSION['sort']=="All")
 {
-	if (!$stmt = $mysqli->query("SELECT username, cname, cunits, cgrade FROM CINFO")) {
+	if (!$stmt = $mysqli->query("SELECT B.name, U.username as teacher, C.username, C.uid, C.cname, C.cunits, C.cgrade FROM CINFO C
+	INNER JOIN Class_Site CS on C.uid=CS.cid
+	INNER JOIN Building B on CS.bid=B.bid
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid")) {
 		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
 	}	
 ?>
-<h3>Currently Viewing All Shared User CLasses</h3>
+<h3>Currently Viewing All Student CLasses</h3>
 <table border="1">
 <thead> 
 <tr>
@@ -75,6 +105,8 @@ else if ($_SESSION['sort']=="All")
     <th>Course Name</th> 
     <th>Course Units</th> 
     <th>Course Grade</th> 
+	<th>Teacher</th> 
+	<th>Building</th> 
 </tr> 
 </thead>
 <tbody>
@@ -86,6 +118,8 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['cname'] . "</td>";
 	echo "<td>" . $row['cunits'] . "</td>";
 	echo "<td>" . $row['cgrade'] . "</td>";	
+	echo "<td>" . $row['teacher'] . "</td>";	
+	echo "<td>" . $row['name'] . "</td>";	
 	echo "</tr>";
 }
 ?>
@@ -103,7 +137,12 @@ $sorter=$_SESSION['sort'];
 	{
 		$gradunits=$row['units'];
 	}
-	if (!$stmt = $mysqli->query("SELECT cname, cunits, cgrade FROM CINFO WHERE username='$sorter'")) {
+	if (!$stmt = $mysqli->query("SELECT B.name, U.username as teacher, C.uid, C.cname, C.cunits, C.cgrade FROM CINFO C
+	INNER JOIN Class_Site CS on C.uid=CS.cid
+	INNER JOIN Building B on CS.bid=B.bid
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid
+	where C.username='$sorter'")) {
 		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
 	}
 	echo "<h3>Currently Viewing All $sorter User CLasses</h3>";
@@ -114,6 +153,8 @@ $sorter=$_SESSION['sort'];
     <th>Course Name</th> 
     <th>Course Units</th> 
     <th>Course Grade</th> 
+	<th>Teacher</th> 
+	<th>Building</th> 
 </tr> 
 </thead>
 <tbody>
@@ -127,8 +168,10 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['cname'] . "</td>";
 	echo "<td>" . $row['cunits'] . "</td>";
 	echo "<td>" . $row['cgrade'] . "</td>";	
+	echo "<td>" . $row['teacher'] . "</td>";	
+	echo "<td>" . $row['name'] . "</td>";	
 	echo "</tr>";
-	$totalunits=$row['cunits']+$totalunits;
+	//$totalunits=$row['cunits']+$totalunits;
 	$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
 }
 ?>
@@ -152,6 +195,23 @@ while($row = mysqli_fetch_array($stmt))
 <tbody>
 <tr>
 <?php
+	if ($stmt = $mysqli->prepare("SELECT SUM(cunits) FROM CINFO WHERE username=?")) {
+
+    /* bind parameters for markers */
+    $stmt->bind_param("s", $sorter);
+
+    /* execute query */
+    $stmt->execute();
+
+    /* bind result variables */
+    $stmt->bind_result($totalunits);
+
+    /* fetch value */
+    $stmt->fetch();
+
+    /* close statement */
+    $stmt->close();
+	}
 $unitsleft=$gradunits-$totalunits;
 if ($totalunits==0)
 {
@@ -159,7 +219,41 @@ if ($totalunits==0)
 }
 else
 {
-$gpa=$totalgp/$totalunits;
+   if ($stmt = $mysqli->prepare("Select uid from USERDB WHERE username=?")) {
+
+    /* bind parameters for markers */
+    $stmt->bind_param("s", $sorter);
+
+    /* execute query */
+    $stmt->execute();
+
+    /* bind result variables */
+    $stmt->bind_result($sorterid);
+
+    /* fetch value */
+    $stmt->fetch();
+
+    /* close statement */
+    $stmt->close();
+	}
+	if ($stmt = $mysqli->prepare("SELECT GPA FROM GPA WHERE sid=?")) {
+
+    /* bind parameters for markers */
+    $stmt->bind_param("i", $sorterid);
+
+    /* execute query */
+    $stmt->execute();
+
+    /* bind result variables */
+    $stmt->bind_result($gpa);
+
+    /* fetch value */
+    $stmt->fetch();
+
+    /* close statement */
+    $stmt->close();
+	}
+	
 }
 	echo "<td>$sorter</td>";
 	echo "<td>$gradunits</td>";

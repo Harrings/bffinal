@@ -68,7 +68,27 @@ else
 		//echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
 		$error=1;
 	}
+	$userid=$stmt->insert_id;
 	$stmt->close();
+	$gpa=0;
+	$totalunits=0;
+	
+	if($teacher==0)
+	{
+		if (!($stmt = $mysqli->prepare("INSERT INTO GPA(sid, GPA, utaken) VALUES (?,?,?)"))) {
+			 echo "Prepare failed: (" . $mysqli->errno . ") " . $mysqli->error;
+			 $error=1;
+		}
+		if (!$stmt->bind_param("idi", $userid, $gpa, $totalunits)) {
+			echo "Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error;
+			$error=1;
+		}
+		if (!$stmt->execute()) {
+			//echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+			$error=1;
+		}
+		$stmt->close();
+	}
 	if ($error==0)
 	{
 		session_start();

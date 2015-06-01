@@ -19,6 +19,28 @@ if ($mysqli->connect_errno) {
   <title>Student Courses</title>
 <?php
 include "navbar.php";
+$buildings=array();
+if (!$stmt = $mysqli->query("SELECT name FROM Building")) {
+		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
+	}
+while($row = mysqli_fetch_array($stmt))	
+{
+	if ((!(in_array($row['name'], $buildings)))&&($row['name']!=null))
+	{
+		array_push($buildings,$row['name']);
+	}
+}
+$teachers=array();
+if (!$stmt = $mysqli->query("SELECT username FROM USERDB WHERE teacher=1")) {
+		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
+	}
+while($row = mysqli_fetch_array($stmt))	
+{
+	if ((!(in_array($row['username'], $teachers)))&&($row['username']!=null))
+	{
+		array_push($teachers,$row['username']);
+	}
+}
 ?>
 </head>
 <body>
@@ -27,7 +49,25 @@ include "navbar.php";
 <form action="addclass.php" method="post">
 		<p>Course Name: <input type="text" name="cname" /></p>
 		<p>Course Units: <input type="number" name="cunits" min="1" max="10" /></p>	
-		<p>Grade as number: <input type="number" name="cgrade" min="1" max="10" /></p>	
+		<p>Grade as number: <input type="number" name="cgrade" min="1" max="10" /></p>
+		<p>Building: <select name="building">
+<?php
+$x=count($buildings);
+for ($i=0;$i<$x; $i++)
+{
+	echo "<option value='$buildings[$i]'>$buildings[$i]</option>";
+}
+?>
+</select></p>	
+		<p>Teacher: <select name="teacherpick">
+<?php
+$x=count($teachers);
+for ($i=0;$i<$x; $i++)
+{
+	echo "<option value='$teachers[$i]'>$teachers[$i]</option>";
+}
+?>
+</select></p>	
 		<br><br>
 		<input type="submit" value="Submit">
 		<br><br>
@@ -35,9 +75,23 @@ include "navbar.php";
 <?php
 $username=$_SESSION['username'];
 $gradunits=$_SESSION['units'];
-if (!$stmt = $mysqli->query("SELECT uid, cname, cunits, cgrade, shared FROM CINFO WHERE username='$username'")) {
+
+if (!$stmt = $mysqli->query("SELECT B.name, U.username, C.uid, C.cname, C.cunits, C.cgrade, C.shared FROM CINFO C
+	INNER JOIN Class_Site CS on C.uid=CS.cid
+	INNER JOIN Building B on CS.bid=B.bid
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid
+	WHERE C.username='$username'")) {
 		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
 	}
+/*
+if (!$stmt = $mysqli->query("SELECT U.username, C.uid, C.cname, C.cunits, C.cgrade, C.shared FROM CINFO C
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid
+	WHERE C.username='$username'")) {
+		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
+	}
+*/
 ?>
 <h2>Classes Taken</h2>
 <table border="1">
@@ -46,6 +100,8 @@ if (!$stmt = $mysqli->query("SELECT uid, cname, cunits, cgrade, shared FROM CINF
     <th>Course Name</th> 
     <th>Course Units</th> 
     <th>Course Grade</th> 
+	<th>Teacher</th> 
+	<th>Building</th> 
     <th>Shared</th> 
     <th>Change Status</th> 
     <th>Delete</th>
@@ -61,6 +117,8 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['cname'] . "</td>";
 	echo "<td>" . $row['cunits'] . "</td>";
 	echo "<td>" . $row['cgrade'] . "</td>";
+	echo "<td>" . $row['username'] . "</td>";
+	echo "<td>" . $row['name'] . "</td>";
 	echo "<td>";
 	if (!$row['shared'])
 	{
@@ -83,7 +141,7 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<input type=\"submit\" value=\"delete\">";
 	echo "</form> </td>";
 	echo "</tr>";
-	$totalunits=$row['cunits']+$totalunits;
+	//$totalunits=$row['cunits']+$totalunits;
 	$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
 }
 ?>
@@ -103,6 +161,23 @@ while($row = mysqli_fetch_array($stmt))
 <tbody>
 <tr>
 <?php
+if ($stmt = $mysqli->prepare("SELECT SUM(cunits) FROM CINFO WHERE username=?")) {
+
+    /* bind parameters for markers */
+    $stmt->bind_param("s", $username);
+
+    /* execute query */
+    $stmt->execute();
+
+    /* bind result variables */
+    $stmt->bind_result($totalunits);
+
+    /* fetch value */
+    $stmt->fetch();
+
+    /* close statement */
+    $stmt->close();
+}
 $unitsleft=$gradunits-$totalunits;
 if ($totalunits==0)
 {
@@ -110,8 +185,43 @@ if ($totalunits==0)
 }
 else
 {
+
 $gpa=$totalgp/$totalunits;
+
 }
+
+if ($stmt = $mysqli->prepare("Select uid from USERDB WHERE username=?")) {
+
+    /* bind parameters for markers */
+    $stmt->bind_param("s", $username);
+
+    /* execute query */
+    $stmt->execute();
+
+    /* bind result variables */
+    $stmt->bind_result($userid);
+
+    /* fetch value */
+    $stmt->fetch();
+
+    /* close statement */
+    $stmt->close();
+	}
+if (!($stmt = $mysqli->prepare("UPDATE GPA SET GPA=?, utaken=? WHERE sid=?"))) {
+		 echo "Prepare failed: (" . $mysqli->errno . ") " . $mysqli->error;
+		 $error=1;
+	}
+	if (!$stmt->bind_param("dii", $gpa, $totalunits, $userid)) {
+		echo "Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error;
+		$error=1;
+	}
+	if (!$stmt->execute()) {
+		//echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+		$error=1;
+	}
+	$stmt->close();
+
+
 	echo "<td>$username</td>";
 	echo "<td>$gradunits</td>";
 	echo "<td>$totalunits</td>";
@@ -144,23 +254,31 @@ while($row = mysqli_fetch_array($stmt))
 $x=count($sharedusers);
 for ($i=0;$i<$x; $i++)
 {
-	echo "<option value=$sharedusers[$i]>$sharedusers[$i]</option>";
+	echo "<option value='$sharedusers[$i]'>$sharedusers[$i]</option>";
 }
 ?>
 </select>
 </div>
 <input type="submit" value="Filter">
 </form>
+
 <?php
+
 if(!isset($_SESSION['sort'])||$_SESSION['sort']=="NONE")
 {
 	echo "<h3>Currently Viewing No Shared Users</h3>";
 }
 else if ($_SESSION['sort']=="All")
 {
-	if (!$stmt = $mysqli->query("SELECT username, cname, cunits, cgrade FROM CINFO WHERE shared=1")) {
+	
+	if (!$stmt = $mysqli->query("SELECT B.name, U.username as teacher, C.username, C.uid, C.cname, C.cunits, C.cgrade FROM CINFO C
+	INNER JOIN Class_Site CS on C.uid=CS.cid
+	INNER JOIN Building B on CS.bid=B.bid
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid
+	WHERE C.shared=1")) {
 		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
-	}	
+	}
 ?>
 <h3>Currently Viewing All Shared User CLasses</h3>
 <table border="1">
@@ -169,7 +287,9 @@ else if ($_SESSION['sort']=="All")
 	<th>Username</th>
     <th>Course Name</th> 
     <th>Course Units</th> 
-    <th>Course Grade</th> 
+    <th>Course Grade</th>
+	<th>Teacher</th> 
+	<th>Building</th> 
 </tr> 
 </thead>
 <tbody>
@@ -181,6 +301,8 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['cname'] . "</td>";
 	echo "<td>" . $row['cunits'] . "</td>";
 	echo "<td>" . $row['cgrade'] . "</td>";	
+	echo "<td>" . $row['teacher'] . "</td>";	
+	echo "<td>" . $row['name'] . "</td>";	
 	echo "</tr>";
 }
 ?>
@@ -191,7 +313,12 @@ while($row = mysqli_fetch_array($stmt))
 else
 {
 $sorter=$_SESSION['sort'];
-	if (!$stmt = $mysqli->query("SELECT cname, cunits, cgrade FROM CINFO WHERE shared=1 and username='$sorter'")) {
+	if (!$stmt = $mysqli->query("SELECT B.name, U.username as teacher, C.uid, C.cname, C.cunits, C.cgrade FROM CINFO C
+	INNER JOIN Class_Site CS on C.uid=CS.cid
+	INNER JOIN Building B on CS.bid=B.bid
+	INNER JOIN Teaches T on T.cid=C.uid
+	INNER JOIN USERDB U on T.tid=U.uid
+	WHERE C.shared=1 and C.username='$sorter'")) {
 		echo "Query Failed!: (" . $mysqli->errno . ") ". $mysqli->error;
 	}
 	echo "<h3>Currently Viewing $sorter Shared User CLasses</h3>";
@@ -202,6 +329,8 @@ $sorter=$_SESSION['sort'];
     <th>Course Name</th> 
     <th>Course Units</th> 
     <th>Course Grade</th> 
+	<th>Teacher</th> 
+	<th>Building</th> 
 </tr> 
 </thead>
 <tbody>
@@ -212,6 +341,8 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['cname'] . "</td>";
 	echo "<td>" . $row['cunits'] . "</td>";
 	echo "<td>" . $row['cgrade'] . "</td>";	
+	echo "<td>" . $row['teacher'] . "</td>";	
+	echo "<td>" . $row['name'] . "</td>";
 	echo "</tr>";
 }
 ?>
