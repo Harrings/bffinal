@@ -45,6 +45,10 @@ else if (($_POST["teacherpick"]==null))
 {
 	echo "<p>Error to add a class it must have a grade click <a href=\"switch.php\">here</a> to return to your records</p>";
 }
+else if (($_POST["building"]==$_POST["building2"]))
+{
+	echo "<p>Error can't enter same building for both entries <a href=\"switch.php\">here</a> to return to your records</p>";
+}
 else
 {
 	$username=$_SESSION["username"];
@@ -53,6 +57,7 @@ else
 	$length=$_POST["cgrade"];
 	$buildingpick=$_POST["building"];
 	$teacherpick=$_POST["teacherpick"];
+	$buildingpick2=$_POST["building2"];
 	
 
 	if (!($stmt = $mysqli->prepare("INSERT INTO CINFO(username, cname, cunits, cgrade) VALUES (?,?,?,?)"))) {
@@ -136,7 +141,44 @@ if ($stmt = $mysqli->prepare("Select bid from Building WHERE name=?")) {
 		$error=1;
 	}
 	$stmt->close();
+	if ($buildingpick2!="NONE")
+	{
+		if ($stmt = $mysqli->prepare("Select bid from Building WHERE name=?")) {
+
+		/* bind parameters for markers */
+		$stmt->bind_param("s", $buildingpick2);
+
+		/* execute query */
+		$stmt->execute();
+
+		/* bind result variables */
+		$stmt->bind_result($buildid);
+
+		/* fetch value */
+		$stmt->fetch();
+
+		/* close statement */
+		$stmt->close();
+		}
+
+		
+		
+		
+		if (!($stmt = $mysqli->prepare("INSERT INTO Class_Site(bid, cid) VALUES (?,?)"))) {
+			 echo "Prepare failed: (" . $mysqli->errno . ") " . $mysqli->error;
+			 $error=1;
+		}
+		if (!$stmt->bind_param("ii", $buildid,$classid)) {
+			echo "Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error;
+			$error=1;
+		}
+		if (!$stmt->execute()) {
+			//echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+			$error=1;
+		}
+		$stmt->close();
 	
+	}
 	if ($error==0)
 	{
 		header("Location: switch.php", true);

@@ -23,6 +23,11 @@ include "navbar.php";
 </head>
 <body>
 <section>
+<h2>Add Building</h2>
+<form action="addbuilding.php" method="post">
+	<p>Building Name: <input type="text" name="bname" /></p>
+	<input type="submit" value="Submit">
+</form>
 <h2>Students Ranked by GPA</h2>
 <?php
 	if (!$stmt = $mysqli->query("SELECT  U.username, G.GPA from USERDB U 
@@ -172,7 +177,7 @@ while($row = mysqli_fetch_array($stmt))
 	echo "<td>" . $row['name'] . "</td>";	
 	echo "</tr>";
 	//$totalunits=$row['cunits']+$totalunits;
-	$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
+	//$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
 }
 ?>
 </tbody>

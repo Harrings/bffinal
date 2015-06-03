@@ -49,10 +49,19 @@ while($row = mysqli_fetch_array($stmt))
 <form action="addclass.php" method="post">
 		<p>Course Name: <input type="text" name="cname" /></p>
 		<p>Course Units: <input type="number" name="cunits" min="1" max="10" /></p>	
-		<p>Grade as number: <input type="number" name="cgrade" min="1" max="10" /></p>
+		<p>Grade as number: <input type="number" step="any" name="cgrade" min="1" max="4" /></p>
 		<p>Building: <select name="building">
 <?php
 $x=count($buildings);
+for ($i=0;$i<$x; $i++)
+{
+	echo "<option value='$buildings[$i]'>$buildings[$i]</option>";
+}
+?>
+</select></p>	
+<p>Building 2 Optional: <select name="building2">
+<option value="NONE">NONE</option>
+<?php
 for ($i=0;$i<$x; $i++)
 {
 	echo "<option value='$buildings[$i]'>$buildings[$i]</option>";
@@ -111,6 +120,7 @@ if (!$stmt = $mysqli->query("SELECT U.username, C.uid, C.cname, C.cunits, C.cgra
 <?php
 $totalunits=0;
 $totalgp=0;
+$usedid=0;
 while($row = mysqli_fetch_array($stmt))	
 {
 	echo "<tr>" ;
@@ -142,7 +152,11 @@ while($row = mysqli_fetch_array($stmt))
 	echo "</form> </td>";
 	echo "</tr>";
 	//$totalunits=$row['cunits']+$totalunits;
-	$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
+	if ($usedid!=$row['uid']) //used to keep track if class has been calculated yet
+	{
+		$totalgp=($row['cunits']*$row['cgrade'])+$totalgp;
+		$usedid=$row['uid'];
+	}
 }
 ?>
 </tbody>
@@ -161,6 +175,7 @@ while($row = mysqli_fetch_array($stmt))
 <tbody>
 <tr>
 <?php
+
 if ($stmt = $mysqli->prepare("SELECT SUM(cunits) FROM CINFO WHERE username=?")) {
 
     /* bind parameters for markers */
